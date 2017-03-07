@@ -23,9 +23,13 @@ func TestRunSyncOK(t *testing.T) {
 	}
 
 	r := run.NewRunSync(true)
-	gotStatus, err := r.Run(cmds)
+	err := r.Run(cmds)
 	if err != nil {
 		t.Fatal(err)
+	}
+	gotStatus, cur := r.Status()
+	if cur != -1 {
+		t.Errorf("got cur status %d, expected -1")
 	}
 	if len(gotStatus) != 2 {
 		t.Fatal("expected 2 Status, got %d", len(gotStatus))
@@ -83,40 +87,44 @@ func TestRunSyncStop(t *testing.T) {
 	var gotErr error
 	doneChan := make(chan struct{})
 	go func() {
-		gotStatus, gotErr = r.Run(cmds)
+		gotErr = r.Run(cmds)
+		gotStatus, _ = r.Status()
 		close(doneChan)
 	}()
 
 	time.Sleep(1 * time.Second)
 
 	// Test Status while running
-	gotStatus = r.Status()
-	if len(gotStatus) != 2 {
+	curStatus, cur := r.Status()
+	if cur != 0 {
+		t.Error("got cur status %d, expected 0", cur)
+	}
+	if len(curStatus) != 2 {
 		t.Fatal("expected 2 Status, got %d", len(gotStatus))
 	}
 	expectStatus := []cmd.Status{
 		{
 			Cmd:      "./test/count-and-sleep",
-			PID:      gotStatus[0].PID, // nondeterministic
+			PID:      curStatus[0].PID, // nondeterministic
 			Complete: false,
 			Exit:     -1,
 			Error:    nil,
-			Runtime:  gotStatus[0].Runtime, // nondeterministic
+			Runtime:  curStatus[0].Runtime, // nondeterministic
 			Stdout:   []string{"1"},
 			Stderr:   []string{},
 		},
 		{ // zero value for cmd.Status
-			Cmd:      "",
+			Cmd:      "echo",
 			PID:      0,
 			Complete: false,
-			Exit:     0,
+			Exit:     -1,
 			Error:    nil,
 			Runtime:  0,
 			Stdout:   nil,
 			Stderr:   nil,
 		},
 	}
-	if diffs := deep.Equal(gotStatus, expectStatus); diffs != nil {
+	if diffs := deep.Equal(curStatus, expectStatus); diffs != nil {
 		t.Error(diffs)
 	}
 
@@ -170,9 +178,13 @@ func TestRunSyncStopOnError(t *testing.T) {
 	}
 
 	r := run.NewRunSync(true)
-	gotStatus, err := r.Run(cmds)
+	err := r.Run(cmds)
 	if err != run.ErrNonzeroExit {
 		t.Error("got nil err, expected ErrNonzeroExit")
+	}
+	gotStatus, cur := r.Status()
+	if cur != -1 {
+		t.Errorf("got cur status %d, expected -1", cur)
 	}
 	if len(gotStatus) != 2 {
 		t.Fatal("expected 2 Status, got %d", len(gotStatus))
@@ -189,10 +201,10 @@ func TestRunSyncStopOnError(t *testing.T) {
 			Stderr:   []string{},
 		},
 		{ // zero value for cmd.Status
-			Cmd:      "",
+			Cmd:      "echo",
 			PID:      0,
 			Complete: false,
-			Exit:     0,
+			Exit:     -1,
 			Error:    nil,
 			Runtime:  0,
 			Stdout:   nil,
@@ -206,10 +218,11 @@ func TestRunSyncStopOnError(t *testing.T) {
 	// Same commands but stopOnError = false so failure is ignored
 	r = run.NewRunSync(false)
 
-	gotStatus, err = r.Run(cmds)
+	err = r.Run(cmds)
 	if err != nil {
 		t.Error(err)
 	}
+	gotStatus, _ = r.Status()
 	if len(gotStatus) != 2 {
 		t.Fatal("expected 2 Status, got %d", len(gotStatus))
 	}
@@ -262,14 +275,15 @@ func TestRunSyncStopped(t *testing.T) {
 	var gotErr error
 	doneChan := make(chan struct{})
 	go func() {
-		gotStatus, gotErr = r.Run(cmds)
+		gotErr = r.Run(cmds)
+		gotStatus, _ = r.Status()
 		close(doneChan)
 	}()
 
 	time.Sleep(1 * time.Second)
 
 	// Check that Run returns ErrRunning on 2nd+ call
-	_, err := r.Run(cmds)
+	err := r.Run(cmds)
 	if err != run.ErrRunning {
 		t.Error("got nil error, expected ErrRunning")
 	}
@@ -301,10 +315,10 @@ func TestRunSyncStopped(t *testing.T) {
 			Stderr:   []string{"Terminated: 15"},
 		},
 		{ // zero value for cmd.Status
-			Cmd:      "",
+			Cmd:      "echo",
 			PID:      0,
 			Complete: false,
-			Exit:     0,
+			Exit:     -1,
 			Error:    nil,
 			Runtime:  0,
 			Stdout:   nil,

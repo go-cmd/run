@@ -29,5 +29,10 @@ var (
 type Runner interface {
 	Run([]cmd.Cmd) error
 	Stop() error
-	Status() []cmd.Status
+	Status() ([]cmd.Status, int)
 }
+
+// A Factory makes a Runner for the given strategy. This is useful for testing:
+// mock runners can be returned instead of real runners when testing to avoid
+// running real commands.
+type Factory func(strategy string) Runner

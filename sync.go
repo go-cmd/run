@@ -31,19 +31,22 @@ func NewRunSync(stopOnError bool) *RunSync {
 	}
 }
 
-// Run runs the list of Cmd and waits for them to complete. It returns Status
-// for each Cmd in the same order. The returned Status always has the same length
-// as cmds, but if a Cmd is not ran its Status value is nil. Returned Status and
-// error are not mutually exclusive. Status for Cmd that ran are always returned,
-// even if an error is also returned.
-func (r *RunSync) Run(cmds []cmd.Cmd) ([]cmd.Status, error) {
+// Run runs the list of Cmd and waits for them to complete, or one of them
+// to exit non-zero if the runner was created with stopOnError = true.
+func (r *RunSync) Run(cmds []cmd.Cmd) error {
 	r.Lock()
 	if r.running {
 		r.Unlock()
-		return nil, ErrRunning
+		return ErrRunning
 	}
 
+	// Init status for each cmd
 	r.status = make([]cmd.Status, len(cmds))
+	for i, c := range cmds {
+		r.status[i].Cmd = c.Name
+		r.status[i].Exit = -1
+	}
+
 	r.stopChan = make(chan struct{})
 	r.running = true
 	r.Unlock()
@@ -56,7 +59,7 @@ func (r *RunSync) Run(cmds []cmd.Cmd) ([]cmd.Status, error) {
 
 	for i, c := range cmds {
 		if r.stopped() {
-			return r.status, ErrStopped
+			return ErrStopped
 		}
 
 		cmd := cmd.NewCmd(c.Name, c.Args...)
@@ -65,19 +68,20 @@ func (r *RunSync) Run(cmds []cmd.Cmd) ([]cmd.Status, error) {
 		r.cur = i
 		r.Unlock()
 
-		r.status[i] = <-cmd.Start()
+		finalStatus := <-cmd.Start()
 
 		r.Lock()
+		r.status[i] = finalStatus
 		r.cmd = nil
 		r.cur = -1
 		r.Unlock()
 
 		if r.stopOnError && r.status[i].Exit != 0 {
-			return r.status, ErrNonzeroExit
+			return ErrNonzeroExit
 		}
 	}
 
-	return r.status, nil
+	return nil
 }
 
 // Stop stops Run if Run is still running. The return error is from stopping
@@ -107,13 +111,14 @@ func (r *RunSync) Stop() error {
 	return err
 }
 
-func (r *RunSync) Status() []cmd.Status {
+func (r *RunSync) Status() ([]cmd.Status, int) {
 	r.Lock()
 	defer r.Unlock()
 	if r.cmd != nil {
+		// Get current status of currently running command
 		r.status[r.cur] = r.cmd.Status()
 	}
-	return r.status
+	return r.status, r.cur
 }
 
 func (r *RunSync) stopped() bool {
