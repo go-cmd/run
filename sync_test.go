@@ -29,10 +29,10 @@ func TestRunSyncOK(t *testing.T) {
 	}
 	gotStatus, cur := r.Status()
 	if cur != -1 {
-		t.Errorf("got cur status %d, expected -1")
+		t.Errorf("got cur status %d, expected -1", cur)
 	}
 	if len(gotStatus) != 2 {
-		t.Fatal("expected 2 Status, got %d", len(gotStatus))
+		t.Fatalf("expected 2 Status, got %d", len(gotStatus))
 	}
 	if gotStatus[0].PID == gotStatus[1].PID {
 		t.Error("status[0] and status[1] PIDs are equal, expected different")
@@ -97,10 +97,10 @@ func TestRunSyncStop(t *testing.T) {
 	// Test Status while running
 	curStatus, cur := r.Status()
 	if cur != 0 {
-		t.Error("got cur status %d, expected 0", cur)
+		t.Errorf("got cur status %d, expected 0", cur)
 	}
 	if len(curStatus) != 2 {
-		t.Fatal("expected 2 Status, got %d", len(gotStatus))
+		t.Fatalf("expected 2 Status, got %d", len(gotStatus))
 	}
 	expectStatus := []cmd.Status{
 		{
@@ -142,7 +142,7 @@ func TestRunSyncStop(t *testing.T) {
 
 	// 2 jobs in = 2 status out
 	if len(gotStatus) != 2 {
-		t.Fatal("expected 2 Status, got %d", len(gotStatus))
+		t.Fatalf("expected 2 Status, got %d", len(gotStatus))
 	}
 
 	expectStatus[0] = cmd.Status{
@@ -187,7 +187,7 @@ func TestRunSyncStopOnError(t *testing.T) {
 		t.Errorf("got cur status %d, expected -1", cur)
 	}
 	if len(gotStatus) != 2 {
-		t.Fatal("expected 2 Status, got %d", len(gotStatus))
+		t.Fatalf("expected 2 Status, got %d", len(gotStatus))
 	}
 	expectStatus := []cmd.Status{
 		{
@@ -224,7 +224,7 @@ func TestRunSyncStopOnError(t *testing.T) {
 	}
 	gotStatus, _ = r.Status()
 	if len(gotStatus) != 2 {
-		t.Fatal("expected 2 Status, got %d", len(gotStatus))
+		t.Fatalf("expected 2 Status, got %d", len(gotStatus))
 	}
 	expectStatus = []cmd.Status{
 		{
@@ -301,7 +301,7 @@ func TestRunSyncStopped(t *testing.T) {
 	}
 
 	if len(gotStatus) != 2 {
-		t.Fatal("expected 2 Status, got %d", len(gotStatus))
+		t.Fatalf("expected 2 Status, got %d", len(gotStatus))
 	}
 	expectStatus := []cmd.Status{
 		{
